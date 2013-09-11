@@ -14,12 +14,9 @@ import static java.lang.String.format;
  */
 public class Allocheck implements AutoCloseable {
 
-    private static boolean globalEnabled = true;
-    private static boolean globalDebug = true;
+    private final boolean debug = true;
 
-    private final boolean debug = globalDebug;
-
-    private boolean enabled = globalEnabled;
+    private boolean active = false;
     private final List<Allocation> allocations;
     private final int maxObjects;
     private final long maxBytes;
@@ -31,16 +28,16 @@ public class Allocheck implements AutoCloseable {
     final Sampler sampler = new Sampler() {
         @Override
         public void sampleAllocation(int count, String desc, Object newObj, long size) {
-            if (enabled && Thread.currentThread() == thread) {
+            if (active && Thread.currentThread() == thread && newObj.getClass() != Allocheck.class) {
                 allocationCount++;
                 allocationSize += size;
                 if (debug) {
-                    enabled = false;
+                    active = false;
                     try {
                         String stack = Throwables.getStackTraceAsString(new Throwable());
                         allocations.add(new Allocation(desc, stack, size, System.currentTimeMillis()));
                     } finally {
-                        enabled = true;
+                        active = true;
                     }
                 }
             }
@@ -48,44 +45,36 @@ public class Allocheck implements AutoCloseable {
     };
 
     // TODO friendlier api
-    Allocheck(int maxObjects, long maxBytes, Thread thread) {
-        this.thread = thread;
+    Allocheck(int maxObjects, long maxBytes) {
+        this.thread = Thread.currentThread();
         this.maxObjects = maxObjects;
         this.maxBytes = maxBytes;
-        if (enabled) {
-            if (debug) {
-                allocations = Lists.newArrayList();
-            } else {
-                allocations = null;
-            }
-            AllocationRecorder.addSampler(sampler);
+        if (debug) {
+            allocations = Lists.newArrayList();
         } else {
             allocations = null;
         }
+        AllocationRecorder.addSampler(sampler);
+        active = true;
     }
 
     @Override
     public void close() {
-        if (!enabled) {
-            return;
-        }
-
+        active = false;
         AllocationRecorder.removeSampler(sampler);
 
-        if (enabled) {
-            List<String> violations = Lists.newArrayList();
-            if (allocationCount > maxObjects) {
-                violations.add(format("Number of objects allocated exceeded max: %d > %d", allocationCount, maxObjects));
-            }
+        List<String> violations = Lists.newArrayList();
+        if (allocationCount > maxObjects) {
+            violations.add(format("Number of objects allocated exceeded max: %d > %d", allocationCount, maxObjects));
+        }
 
-            if (allocationSize > maxBytes) {
-                violations.add(format("Number of bytes allocated exceeded max: %d > %d", allocationSize, maxBytes));
+        if (allocationSize > maxBytes) {
+            violations.add(format("Number of bytes allocated exceeded max: %d > %d", allocationSize, maxBytes));
 
-            }
+        }
 
-            if (!violations.isEmpty()) {
-                throw new AllocationException(violations, allocations);
-            }
+        if (!violations.isEmpty()) {
+            throw new AllocationException(violations, allocations);
         }
     }
 }

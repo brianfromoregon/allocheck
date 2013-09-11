@@ -13,15 +13,12 @@ public class Main {
     }
 
     void doSomeWork() {
-        try (Allocheck _ = new Allocheck(1, 1, Thread.currentThread())) {
+        try (Allocheck _ = new Allocheck(1, 1)) {
             for (int i = 0; i < 5; i++) {
-                doSomeMoreWork();
+                new Object().hashCode();
+                Integer.parseInt(String.valueOf(i));
             }
         }
-    }
-
-    private void doSomeMoreWork() {
-        System.out.println("Doing more work");
     }
 
     public static void main(String[] args) throws Exception {
