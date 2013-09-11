@@ -1,0 +1,15 @@
+apply plugin: 'java'
+apply plugin: 'idea'
+
+sourceCompatibility = 1.7
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+dependencies {
+    compile 'com.google.code.java-allocation-instrumenter:java-allocation-instrumenter:2.2-SNAPSHOT'
+    compile 'com.google.guava:guava:15.0'
+    compile 'net.sf.opencsv:opencsv:2.3'
+}
